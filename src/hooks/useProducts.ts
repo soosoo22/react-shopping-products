@@ -1,90 +1,95 @@
 import { useEffect, useState } from "react";
-import { PRODUCTS_ENDPOINT } from "../api/endpoints";
-import { PAGE } from "../constants/page";
 import { useError } from "../context/errorContext";
+import { fetchProducts } from "../api/products";
+import usePagination from "./usePagination";
 
 interface UseProductsResult {
-  products: ProductProps[];
+  products: Product[];
   isLoading: boolean;
-  error: Error | null;
-  page: number;
   fetchNextPage: () => void;
   isLastPage: boolean;
-  setSortOption: (sortOption: string) => void;
-  setCategory: (category: string) => void;
-  resetPage: () => void;
-  selectedCategory: string;
-  selectedSort: string;
+  categoryState: {
+    currentCategory: string;
+    changeCategory: (value: string) => void;
+  };
+
+  sortOptionState: {
+    currentSortOption: string;
+    changeSortOption: (value: string) => void;
+  };
+
+  errorMessage: string;
 }
 
 const sortOptionsMap: { [key: string]: string } = {
-  "price,asc": "낮은 가격순",
-  "price,desc": "높은 가격순",
+  "낮은 가격순": "price,asc",
+  "높은 가격순": "price,desc",
 };
 
-export default function useProducts(): UseProductsResult {
-  const [products, setProducts] = useState<ProductProps[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-  const { setErrorStatus } = useError();
-  const [page, setPage] = useState<number>(1);
-  const [isLastPage, setIsLastPage] = useState<boolean>(false);
-  const [sortOption, setSortOption] = useState<string>("price,asc");
+const useProducts = (): UseProductsResult => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [category, setCategory] = useState<string>("전체");
+  const [sortOption, setSortOption] = useState<string>("price,asc");
+  const { page, isLastPage, handleLastPage, goToNextPage, resetPage } = usePagination();
+  const { errorMessage, setErrorMessage } = useError();
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
+  const fetchParams = {
+    page: page,
+    category: category,
+    sortOption: sortOption,
+    setErrorMessage: setErrorMessage,
+  };
+
+  const getProducts = async () => {
     try {
-      const size = page === PAGE.FIRST_PAGE ? PAGE.FIRST_PAGE_LIMIT : PAGE.OTHER_PAGE_LIMIT;
-      const categoryQuery = category === "전체" ? "" : `category=${category}`;
+      setIsLoading(true);
 
-      const response = await fetch(
-        `${PRODUCTS_ENDPOINT}?${categoryQuery}&page=${page}&size=${size}&sort=${sortOption}`
-      );
-
-      if (!response.ok) {
-        setErrorStatus(response.status);
-        throw new Error("에러 발생");
-      }
-      const data = await response.json();
-
-      setProducts((prevProducts) =>
-        page === 1 ? data.content : [...prevProducts, ...data.content]
-      );
-
-      setIsLastPage(data.last);
+      const data = await fetchProducts(fetchParams);
+      setProducts((prevProducts) => [...prevProducts, ...data.content]);
+      handleLastPage(data.last);
     } catch (error) {
-      setError(error as Error);
+      console.log(error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, [setErrorStatus, page, sortOption, category]);
+    if (!isLastPage) getProducts();
+  }, [page, sortOption, category]);
 
   const fetchNextPage = () => {
-    if (!isLastPage && !isLoading) setPage((prevPage) => prevPage + 1);
+    if (!isLoading) goToNextPage();
   };
 
-  const resetPage = () => {
-    setProducts([]);
-    setPage(1);
-    setIsLastPage(false);
+  const categoryState = {
+    currentCategory: category,
+    changeCategory: (value: string) => {
+      setProducts([]);
+      resetPage();
+      setCategory(value);
+    },
+  };
+
+  const sortOptionState = {
+    currentSortOption: sortOption,
+    changeSortOption: (value: string) => {
+      setProducts([]);
+      resetPage();
+      setSortOption(sortOptionsMap[value]);
+    },
   };
 
   return {
     products,
     isLoading,
-    error,
-    page,
     isLastPage,
     fetchNextPage,
-    setSortOption,
-    setCategory,
-    resetPage,
-    selectedCategory: category,
-    selectedSort: sortOptionsMap[sortOption],
+    categoryState,
+    sortOptionState,
+    errorMessage,
   };
-}
+};
+
+export default useProducts;

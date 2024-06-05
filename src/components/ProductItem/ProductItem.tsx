@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { addCartItem, removeCartItem } from "../../api/cart";
+import { useEffect } from "react";
 import { CartActionButton } from "../Button/CartActionButton";
 import {
   StyledContainer,
@@ -9,27 +8,22 @@ import {
   StyledProductPrice,
   StyledWrapper,
 } from "./ProductItem.styled";
+import { useCart } from "../../context/cartContext";
+import useCartItems from "../../hooks/useCartItems";
 
 export const ProductItem = ({
   id,
   imageUrl,
   name,
   price,
-}: Pick<ProductProps, "id" | "imageUrl" | "name" | "price">) => {
-  const [isAddToCart, setIsAddToCart] = useState(false);
+}: Pick<Product, "id" | "imageUrl" | "name" | "price">) => {
+  const { cartItemsCount, handleAddCartItem, handleRemoveCartItem, isProductInCart } =
+    useCartItems();
+  const { setQuantity } = useCart();
 
-  const handleButtonClick = async () => {
-    setIsAddToCart((prev) => !prev);
-    try {
-      if (isAddToCart) {
-        await removeCartItem(id);
-      } else {
-        await addCartItem(id);
-      }
-    } catch (error) {
-      console.error("Error handling cart action:", error);
-    }
-  };
+  useEffect(() => {
+    setQuantity(cartItemsCount);
+  }, [cartItemsCount]);
 
   return (
     <StyledProductItem>
@@ -39,7 +33,12 @@ export const ProductItem = ({
           <StyledProductName>{name}</StyledProductName>
           <StyledProductPrice>{price}</StyledProductPrice>
         </StyledWrapper>
-        <CartActionButton actionType={isAddToCart ? "sub" : "add"} onClick={handleButtonClick} />
+        <CartActionButton
+          actionType={isProductInCart(id) ? "sub" : "add"}
+          onClick={() => {
+            isProductInCart(id) ? handleRemoveCartItem(id) : handleAddCartItem(id);
+          }}
+        />
       </StyledContainer>
     </StyledProductItem>
   );
