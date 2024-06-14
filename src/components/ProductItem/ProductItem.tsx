@@ -21,6 +21,7 @@ export const ProductItem = ({ product }: { product: Product }) => {
     handlePatchCartItem,
     isProductInCart,
   } = useCartItems();
+
   const cartItem = cartItems.find((item) => item.product.id === product.id);
   const productCount = cartItem ? cartItem.quantity : 1;
 
@@ -70,7 +71,10 @@ export const ProductItem = ({ product }: { product: Product }) => {
             </ProductItemControls>
           </ProductItemBundle>
         ) : (
-          <CartActionButton actionType="add" onClick={handleCartButtonClick} />
+          <CartActionButton
+            actionType={isProductInCart(product.id) ? "remove" : "add"}
+            onClick={handleCartButtonClick}
+          />
         )}
       </StyledContainer>
     </StyledProductItem>
